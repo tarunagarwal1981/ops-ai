@@ -1,0 +1,6 @@
+[project]
+name = "mcp-sqlite-readonly"
+version = "0.1.0"
+description = "A read-only SQLite MCP server in about 60 lines"
+requires-python = ">=3.10"
+dependencies = ["mcp[cli]>=2.3,<3"]
