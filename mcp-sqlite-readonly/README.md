@@ -1,8 +1,8 @@
 # Read-only SQLite MCP server
 
-Lets Claude (or any MCP app) answer questions from a SQLite database without ever being able to change it. About 60 lines of Python.
+Lets Claude (or any MCP app) answer questions from a SQLite database without ever being able to change it. About 70 lines of Python.
 
-Companion code for the post *Give Your AI Access to Your Company Data in 60 Lines of Python*.
+Companion code for the post *I Tried to Trick My Own MCP Server Into Deleting a Database*.
 
 > Uses version 2 of the official MCP Python SDK. The old import `from mcp.server.fastmcp import FastMCP` does not work in v2; the class is now `MCPServer`.
 
