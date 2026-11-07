@@ -14,7 +14,7 @@ DB = os.path.join(HERE, "shop.db")
 
 ATTACKS = [
     "DELETE FROM orders",                              # stopped by the text check
-    "SELECT 1; DROP TABLE orders",                     # stopped by the text check
+    "SELECT 1; DELETE FROM orders",                    # stopped by the text check
     "WITH x AS (SELECT 1) DELETE FROM orders",         # passes the text check, stopped by mode=ro
     "WITH x AS (SELECT 1) UPDATE orders SET amount=0", # same
 ]
