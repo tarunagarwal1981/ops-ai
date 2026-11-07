@@ -1,0 +1,2 @@
+boto3==1.43.126
+# botocore is pinned by boto3 (1.43.126). Offline tests need nothing else.

@@ -1,0 +1,13 @@
+SAMPLE DOCUMENT. Fictional companies, for testing only.
+
+SERVICES AGREEMENT between Northwind Shipping Ltd ("Client") and Acme Marine Software Pte Ltd ("Supplier").
+
+1. Term. This agreement starts on 1 March 2026 and runs for 24 months. It renews for further 12-month periods unless either party gives notice.
+
+2. Termination. Either party may end this agreement by giving 90 days' written notice. The Client may end it with 30 days' notice if the Supplier misses the service level in three consecutive months.
+
+3. Fees. The Client pays USD 4,500 per vessel per year, invoiced quarterly in advance. Fees rise by no more than 5% at each renewal.
+
+4. Liability. The Supplier's total liability is capped at the fees paid in the 12 months before the claim.
+
+5. Data. Vessel data stays the property of the Client. The Supplier may not use it to train machine learning models without written consent.

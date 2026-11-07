@@ -1,0 +1,6 @@
+{
+  "chunkingConfiguration": {
+    "chunkingStrategy": "FIXED_SIZE",
+    "fixedSizeChunkingConfiguration": { "maxTokens": 300, "overlapPercentage": 20 }
+  }
+}

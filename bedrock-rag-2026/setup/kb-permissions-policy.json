@@ -1,0 +1,37 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "EmbeddingModel",
+      "Effect": "Allow",
+      "Action": ["bedrock:InvokeModel"],
+      "Resource": ["arn:aws:bedrock:${AWS_REGION}::foundation-model/amazon.titan-embed-text-v2:0"]
+    },
+    {
+      "Sid": "S3ListBucket",
+      "Effect": "Allow",
+      "Action": ["s3:ListBucket"],
+      "Resource": ["arn:aws:s3:::${DOCS_BUCKET}"],
+      "Condition": { "StringEquals": { "aws:ResourceAccount": "${ACCOUNT_ID}" } }
+    },
+    {
+      "Sid": "S3GetObject",
+      "Effect": "Allow",
+      "Action": ["s3:GetObject"],
+      "Resource": ["arn:aws:s3:::${DOCS_BUCKET}/*"],
+      "Condition": { "StringEquals": { "aws:ResourceAccount": "${ACCOUNT_ID}" } }
+    },
+    {
+      "Sid": "S3VectorsIndex",
+      "Effect": "Allow",
+      "Action": [
+        "s3vectors:PutVectors",
+        "s3vectors:GetVectors",
+        "s3vectors:DeleteVectors",
+        "s3vectors:QueryVectors",
+        "s3vectors:GetIndex"
+      ],
+      "Resource": "arn:aws:s3vectors:${AWS_REGION}:${ACCOUNT_ID}:bucket/${VECTOR_BUCKET}/index/${INDEX_NAME}"
+    }
+  ]
+}

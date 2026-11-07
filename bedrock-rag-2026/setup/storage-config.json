@@ -1,0 +1,6 @@
+{
+  "type": "S3_VECTORS",
+  "s3VectorsConfiguration": {
+    "indexArn": "arn:aws:s3vectors:${AWS_REGION}:${ACCOUNT_ID}:bucket/${VECTOR_BUCKET}/index/${INDEX_NAME}"
+  }
+}

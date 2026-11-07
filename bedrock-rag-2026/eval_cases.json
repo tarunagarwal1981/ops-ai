@@ -1,0 +1,20 @@
+[
+  {
+    "question": "How many days' notice does the crewing team need for an officer crew change?",
+    "expect_source": "crew-change-policy.md",
+    "expect_in_answer": ["30"]
+  },
+  {
+    "question": "Who approves a crew change?",
+    "expect_source": "crew-change-policy.md"
+  },
+  {
+    "question": "How fast is the response for a Priority 1 IT ticket?",
+    "expect_source": "it-helpdesk.md",
+    "expect_in_answer": ["1 hour"]
+  },
+  {
+    "question": "What is the company's policy on hull cleaning intervals?",
+    "expect_source": null
+  }
+]

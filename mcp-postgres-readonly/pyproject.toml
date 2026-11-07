@@ -1,0 +1,9 @@
+[project]
+name = "mcp-postgres-readonly"
+version = "0.1.0"
+description = "A read-only Postgres MCP server with three independent locks: role, transaction, timeout"
+requires-python = ">=3.10"
+dependencies = [
+    "mcp[cli]>=2.3,<3",
+    "psycopg[binary]>=3.2,<4",
+]
