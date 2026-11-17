@@ -2,7 +2,7 @@
 
 Lets Claude (or any MCP app) answer questions from a Postgres database without being able to change it, and without being able to run a query that never ends. About 90 lines of Python.
 
-Companion code for part 2 of the MCP series, *Connect Claude to Postgres Without Giving It Write Access*. Part 1 (SQLite) is in [`../mcp-sqlite-readonly`](../mcp-sqlite-readonly).
+Companion code for part 2 of the MCP series, [*Connect Claude to Postgres Without Giving It Write Access*](https://pub.towardsai.net/connect-claude-to-postgres-without-giving-it-write-access-fbe70cb66187). Part 1 (SQLite) is in [`../mcp-sqlite-readonly`](../mcp-sqlite-readonly).
 
 ## Three locks, each tested on its own
 
