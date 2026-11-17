@@ -12,7 +12,7 @@ Small, working examples for putting AI to work on real operations: code you can 
 | [`bedrock-rag-2026/`](bedrock-rag-2026/) | RAG on AWS Bedrock Knowledge Bases with S3 Vectors: cited answers, retrieve-only path, and a smoke test that checks sources | *Build a RAG Pipeline on AWS Bedrock in 2026* |
 | [`local-private-ai/`](local-private-ai/) | A private AI on your laptop with Ollama: ask questions about your own files without sending them anywhere | *Run a Private AI on Your Laptop in 15 Minutes* |
 
-**Want the Claude Code pieces set up in one go?** The [Claude Code Starter Kit](https://tarunagarwal.gumroad.com/l/claude-code-starter-kit) is the full version of `claude-code-starter/` and `claude-code-hooks/`: a one-command installer, 10 tested hooks, 5 subagents, 5 CLAUDE.md templates and a cheat sheet. Everything in this repo stays free.
+**Using Claude Code?** Get the free [cheat sheet and 3 safety hooks](https://tarunagarwal.gumroad.com/l/claude-code-free) (one page of what to type, plus tested hooks ready to copy). The [Claude Code Starter Kit](https://tarunagarwal.gumroad.com/l/claude-code-starter-kit) is the full version of `claude-code-starter/` and `claude-code-hooks/`: a one-command installer, 10 tested hooks, 5 subagents and 5 CLAUDE.md templates. Everything in this repo stays free.
 
 ## The idea running through all of them
 
