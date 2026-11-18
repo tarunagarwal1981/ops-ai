@@ -1,15 +1,16 @@
-# Claude Code hooks: five worth adding today
+# Claude Code hooks: six worth adding today
 
-Five small hook scripts for Claude Code, plus a `settings.json` that wires them up and a test script. Companion code for *5 Claude Code Hooks Worth Adding Today*.
+Six small hook scripts for Claude Code, a deny rule, a `settings.json` that wires them up and a test script. Started as companion code for *5 Claude Code Hooks Worth Adding Today*; the secret scan and the deny rule came later.
 
 They build on the two hooks in [`claude-code-starter/`](../claude-code-starter/) (formatter, `.env` blocker). None of these repeat those.
 
 ```
 claude-code-hooks/
-├── settings.json                 wires all five hooks
+├── settings.json                 wires all six hooks, plus a deny rule for migration files
 ├── test_hooks.sh                 pipes sample JSON into each script, checks the result
 └── hooks/
     ├── block-dangerous.sh        PreToolUse (Bash): blocks rm -rf /, force push, reset --hard, DROP TABLE, curl | sh
+    ├── secret-scan.sh            PreToolUse (Edit|Write): blocks text that looks like an AWS key, API token or private key
     ├── stop-run-tests.sh         Stop: runs your tests when Claude says "done"; failures send it back (max 3 tries)
     ├── notify.sh                 Notification: desktop alert when Claude is waiting on you
     ├── session-context.sh        SessionStart: puts branch, last commits, uncommitted files, TODOs into context
@@ -50,7 +51,7 @@ Run `/hooks` inside Claude Code to check they're loaded.
 Expected last line:
 
 ```
-43 passed, 0 failed
+52 passed, 0 failed
 ```
 
 ## How the exit codes work
@@ -64,9 +65,43 @@ From the hook descriptions in Claude Code 2.1.319:
 - **Notification**: can't block anything; non-zero exits only show stderr to you
 - Any other non-zero exit: stderr shown to you, nothing blocked
 
+## Protecting a folder: deny rule first, hook second, CI last
+
+A hook only watches the tool it's attached to. I had a hook that stopped Claude editing migration files, and Claude made the same change with `echo >> db/migrations/004.sql` through Bash.
+
+Claude Code's own deny rules go further than you might expect. `settings.json` here has:
+
+```json
+"permissions": { "deny": ["Edit(**/migrations/**)"] }
+```
+
+Claude Code checks shell commands that write files against `Edit` rules too. I tested it in Claude Code 2.1.327, with each command explicitly allowed (`--allowedTools "Bash(echo *)"` and so on) so only the deny rule could stop it:
+
+| Command Claude ran | Result |
+| --- | --- |
+| `echo "-- x" >> db/migrations/001.sql` | denied |
+| `echo "-- t" \| tee -a db/migrations/001.sql` | denied |
+| `cp new.sql db/migrations/001.sql` | denied |
+| `sed -i "s/int/bigint/" db/migrations/001.sql` | denied |
+| `python3 -c "open('db/migrations/001.sql','a').write('-- p')"` | **ran, file changed** |
+
+So the deny rule closes most doors, but any script can still write the file. The last layer is a check that doesn't care how the file changed. For migrations the real rule is "new files are fine, never edit an applied one", so in CI:
+
+```bash
+! git diff --name-status origin/main...HEAD -- db/migrations/ | grep -v '^A'
+```
+
+It fails the build if anything in `db/migrations/` was modified, renamed or deleted. (The `!` matters: `grep` exits 0 when it finds a line, which is the case you want to fail.)
+
+Deny rule for most routes, hook for the error message Claude sees, CI for the part nobody can talk around. Thanks to the r/ClaudeCode thread where this came up.
+
 ## Limits
 
 - `block-dangerous.sh` is a seatbelt, not a sandbox. It matches text. `rm -rf /tmp/x`, a script file that does the deleting, or a command built from variables will get past it. Pair it with `permissions.deny` rules and a sandbox for anything that matters.
 - `stop-run-tests.sh` runs on every stop while the working tree has uncommitted changes, including after a quick question. Slow test suite? Point `HOOK_TEST_CMD` at a fast subset.
 - Claude Code also has its own cap: after 8 consecutive Stop-hook blocks it ends the turn anyway (`CLAUDE_CODE_STOP_HOOK_BLOCK_CAP`). The script's own limit of 3 kicks in first.
 - Hooks run with your user's permissions. Read any hook before you install it, these included.
+
+---
+
+Want this set up in one command? The [Claude Code Starter Kit](https://tarunagarwal.gumroad.com/l/claude-code-starter-kit) adds four more hooks (protected paths, `.env` blocker, no commits on main, formatter), five subagents, five CLAUDE.md templates and an installer that picks your test command. Everything in this folder stays free.

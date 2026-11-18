@@ -82,9 +82,26 @@ expect_exit "logs failure" 0 "$H/audit-bash.sh" "$(bash_json 'make deploy' | jq 
 jq -e 'select(.command=="make deploy" and .status=="failed")' "$LOG" >/dev/null && ok "failed command marked as failed" || bad "status field"
 expect_exit "bad log path never blocks" 0 "$H/audit-bash.sh" "$(bash_json 'ls')" HOOK_AUDIT_LOG=/proc/nope/x.jsonl
 
-echo "6. settings.json"
+echo "6. secret-scan.sh (PreToolUse Edit|Write)"
+edit_json() { jq -nc --arg f "$1" --arg c "${2:-x}" '{session_id:"t1",hook_event_name:"PreToolUse",tool_name:"Write",tool_input:{file_path:$f,content:$c}}'; }
+AWS='AKIA''IOSFODNN7EXAMPLE'
+GH='ghp_''aBcDeFgHiJkLmNoPqRsTuVwXyZ0123456789'
+SK='sk-''proj-abcdefghijklmnopqrstuvwxyz0123456789ABCD'
+PK='-----BEGIN RSA ''PRIVATE KEY-----'
+for s in "aws_key = \"$AWS\"" "token: $GH" "OPENAI_API_KEY=$SK" "$PK"; do
+  expect_exit "blocks: ${s:0:24}..." 2 "$H/secret-scan.sh" "$(edit_json config.py "$s")"
+done
+expect_exit "allows placeholders" 0 "$H/secret-scan.sh" "$(edit_json config.py 'api_key = os.environ["OPENAI_API_KEY"]  # <YOUR_KEY>')"
+expect_exit "allows normal code" 0 "$H/secret-scan.sh" "$(edit_json app.py 'def skip_first(items): return items[1:]')"
+EDIT=$(jq -nc --arg s "key=$AWS" '{tool_name:"Edit",tool_input:{file_path:"a.py",old_string:"x",new_string:$s}}')
+expect_exit "checks Edit new_string too" 2 "$H/secret-scan.sh" "$EDIT"
+MULTI=$(jq -nc --arg s "$GH" '{tool_name:"MultiEdit",tool_input:{file_path:"a.py",edits:[{old_string:"a",new_string:"b"},{old_string:"c",new_string:$s}]}}')
+expect_exit "checks MultiEdit edits too" 2 "$H/secret-scan.sh" "$MULTI"
+
+echo "7. settings.json"
 jq -e '.hooks | has("PreToolUse") and has("Stop") and has("Notification") and has("SessionStart") and has("PostToolUse")' \
   "$HERE/settings.json" >/dev/null && ok "valid JSON, all events present" || bad "settings.json"
+jq -e '.permissions.deny | index("Edit(**/migrations/**)")' "$HERE/settings.json" >/dev/null && ok "migrations deny rule present" || bad "deny rule"
 
 echo
 echo "$pass passed, $fail failed"
