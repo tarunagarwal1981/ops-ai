@@ -84,8 +84,12 @@ Claude Code checks shell commands that write files against `Edit` rules too. I t
 | `cp new.sql db/migrations/001.sql` | denied |
 | `sed -i "s/int/bigint/" db/migrations/001.sql` | denied |
 | `python3 -c "open('db/migrations/001.sql','a').write('-- p')"` | **ran, file changed** |
+| `f=db/migrations/004.sql; echo "-- x" >> $f` | **ran, file created** (the path only exists after the variable expands) |
+| `cd db/migrations && echo "-- y" >> 004.sql` | denied |
 
-So the deny rule closes most doors, but any script can still write the file. The last layer is a check that doesn't care how the file changed. For migrations the real rule is "new files are fine, never edit an applied one", so in CI:
+(Variable and `cd` cases added after a reader pointed them out; same version, same setup.)
+
+So the deny rule closes most doors, but any script, or a path built from a variable, can still write the file. The last layer is a check that doesn't care how the file changed. For migrations the real rule is "new files are fine, never edit an applied one", so in CI:
 
 ```bash
 ! git diff --name-status origin/main...HEAD -- db/migrations/ | grep -v '^A'
