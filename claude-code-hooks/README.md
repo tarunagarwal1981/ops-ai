@@ -89,7 +89,32 @@ Claude Code checks shell commands that write files against `Edit` rules too. I t
 
 (Variable and `cd` cases added after a reader pointed them out; same version, same setup.)
 
-So the deny rule closes most doors, but any script, or a path built from a variable, can still write the file. The last layer is a check that doesn't care how the file changed. For migrations the real rule is "new files are fine, never edit an applied one", so in CI:
+So the deny rule closes most doors, but any script, or a path built from a variable, can still write the file. Anything that matches on the command is one interpreter away from a bypass.
+
+### Push the lock below the agent: file permissions
+
+A reader suggested the stronger fix: stop matching commands and make the file itself unwritable, so every program fails the same way. I tested two versions on Linux, running as a normal (non-root) user, since root ignores file permissions.
+
+**Applied migrations owned by a different user, in a sticky directory** (`chown root` on the files, `chmod 1777 db/migrations`, files `644`). New files can still be created, since the agent has to be able to add migration 004:
+
+| Attempt, as the agent's user | Result |
+| --- | --- |
+| create `004.sql` | allowed |
+| `echo >>` onto `001.sql` | denied |
+| `python3 -c "open('001.sql','a')..."` | denied |
+| `sed -i` on `001.sql` | denied |
+| `mv` or `rm` on `001.sql` | denied |
+| `cp` over `001.sql` | denied |
+| `os.replace(004.sql, 001.sql)` | denied |
+| `chmod u+w 001.sql`, or `os.chmod` in Python | denied (not the owner) |
+
+The same attempts with a variable-built path, or after a `cd`, were denied too, because the check happens on the file and not the command text.
+
+**Files owned by the agent's own user with `chmod -w`** is weaker. `echo >>` and a plain Python `open()` fail, but `os.chmod(path, 0o666)` followed by a write **succeeds**, because the owner may change their own permissions. Blocking `chmod` in a hook only blocks the command `chmod`, not the Python call. If you go this way, the owner has to be someone other than the agent.
+
+The catch is setup: the agent has to run as a different user than the file owner, and something else (you, or a deploy step) has to take ownership of a migration once it's applied. Tested only on Linux; macOS, Windows and containers behave differently, and anything running as root bypasses all of it. So the layers are: file permissions where you can, the deny rule for the route Claude usually takes, a hook for the readable error message, and CI as the check nobody can talk around.
+
+The last layer is a check that doesn't care how the file changed. For migrations the real rule is "new files are fine, never edit an applied one", so in CI:
 
 ```bash
 ! git diff --name-status origin/main...HEAD -- db/migrations/ | grep -v '^A'
