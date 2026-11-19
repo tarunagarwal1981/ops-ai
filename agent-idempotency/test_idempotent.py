@@ -1,5 +1,5 @@
 """Run: python test_idempotent.py"""
-from idempotent import Ledger, call_once, make_key
+from idempotent import AckedThenFailed, Ledger, call_once, make_key
 
 P = {"to": "a@b.example", "body": "hi"}
 
@@ -60,5 +60,16 @@ def boom(to, body, idempotency_key=None): raise ValueError("bad address")
 assert call_once(l, "send", boom, P)["status"] == "failed"
 sent, _, send = world()
 assert call_once(l, "send", send, P)["status"] == "done"
+
+# Vendor answered but our read failed: their id is stored, no check lookup needed, never re-sent.
+sent = []
+def acked(to, body, idempotency_key=None):
+    sent.append(idempotency_key)
+    raise AckedThenFailed("msg_123")
+l = Ledger()
+r = call_once(l, "send", acked, P, already_happened=None)
+assert r["status"] == "recovered" and r["result"] == {"vendor_id": "msg_123"}
+assert call_once(l, "send", acked, P)["status"] == "replayed"
+assert len(sent) == 1
 
 print("ALL PASSED")

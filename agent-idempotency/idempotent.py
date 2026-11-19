@@ -14,6 +14,15 @@ import sqlite3
 from typing import Any, Callable, Optional
 
 
+class AckedThenFailed(TimeoutError):
+    """Raise this when the vendor's reply *arrived* (so you hold their id) but
+    your side then timed out or crashed while reading the rest of it."""
+
+    def __init__(self, vendor_id: str):
+        super().__init__(f"acknowledged as {vendor_id}, then failed reading reply")
+        self.vendor_id = vendor_id
+
+
 def make_key(tool: str, payload: dict) -> str:
     canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"))
     return hashlib.sha256(f"{tool}:{canonical}".encode()).hexdigest()[:24]
@@ -24,14 +33,14 @@ class Ledger:
         self.db = sqlite3.connect(path)
         self.db.execute(
             "CREATE TABLE IF NOT EXISTS calls ("
-            "key TEXT PRIMARY KEY, tool TEXT, status TEXT, result TEXT)"
+            "key TEXT PRIMARY KEY, tool TEXT, status TEXT, result TEXT, vendor_id TEXT)"
         )
         self.db.commit()
 
     def begin(self, key: str, tool: str) -> bool:
         """Atomically claim the key. False if someone already has it."""
         try:
-            self.db.execute("INSERT INTO calls VALUES (?, ?, 'started', NULL)", (key, tool))
+            self.db.execute("INSERT INTO calls VALUES (?, ?, 'started', NULL, NULL)", (key, tool))
             self.db.commit()
             return True
         except sqlite3.IntegrityError:
@@ -41,6 +50,14 @@ class Ledger:
         return self.db.execute(
             "SELECT status, result FROM calls WHERE key = ?", (key,)
         ).fetchone()
+
+    def set_vendor_id(self, key: str, vendor_id: str) -> None:
+        self.db.execute("UPDATE calls SET vendor_id=? WHERE key=?", (vendor_id, key))
+        self.db.commit()
+
+    def vendor_id(self, key: str) -> Optional[str]:
+        row = self.db.execute("SELECT vendor_id FROM calls WHERE key = ?", (key,)).fetchone()
+        return row[0] if row else None
 
     def finish(self, key: str, result: Any) -> None:
         self.db.execute(
@@ -71,6 +88,12 @@ def call_once(
         status, result = ledger.get(key)
         if status == "done":
             return {"status": "replayed", "key": key, "result": json.loads(result)}
+        # We hold the vendor's own id from an earlier reply: proof it happened.
+        vid = ledger.vendor_id(key)
+        if vid is not None:
+            result = {"vendor_id": vid}
+            ledger.finish(key, result)
+            return {"status": "recovered", "key": key, "result": result}
         # started but never finished: in doubt
         if already_happened is None:
             return {"status": "in_doubt", "key": key}
@@ -82,6 +105,12 @@ def call_once(
         return {"status": "recovered", "key": key, "result": found}
     try:
         result = fn(**payload, idempotency_key=key)
+    except AckedThenFailed as e:
+        # The vendor answered; only our read failed. Store their id, never re-send.
+        ledger.set_vendor_id(key, e.vendor_id)
+        result = {"vendor_id": e.vendor_id}
+        ledger.finish(key, result)
+        return {"status": "recovered", "key": key, "result": result}
     except TimeoutError:
         # We do not know if it ran. Leave "started" so the next try checks first.
         return {"status": "in_doubt", "key": key}
