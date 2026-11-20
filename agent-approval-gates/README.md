@@ -5,7 +5,7 @@ Companion code for *Your AI Agent Can Now Act Without Asking. Lock These Four Wo
 Every tool an agent can call declares a **verb**. Three lanes:
 
 - **Go ahead**: read, compare, draft, tag, sort. Undoable, and nobody outside sees it.
-- **Ask first**: **send, spend, sign, delete, submit.** A person approves the exact action.
+- **Ask first**: **send, spend, sign, delete, submit, publish, grant.** A person approves the exact action.
 - **Never**: trading securities, moving money between accounts, getting into someone else's account. Refused even with approval.
 
 The test for any new verb: *Can I undo it? Does anyone outside see it?* If "no" and "yes", it's gated.
@@ -28,10 +28,13 @@ Two habits that keep gates useful:
 - **Gate few things.** Forty approvals a day trains people to click "approve" without reading.
 - **Show the exact action.** "Send this email, to this person, with this text" gets a real decision. "Proceed?" gets a reflex. That's what `describe` is for.
 
-## Your fifth verb
+## Your fifth verb (and sixth, and seventh)
 
-Regulated operations usually have one more: **submit**, as in a report, a filing or a declaration that someone else relies on. Found your industry's fifth verb? Open an issue.
+Regulated operations usually have one more: **submit**, as in a report, a filing or a declaration that someone else relies on.
 
----
+Two more came from readers of an r/AI_Agents thread, and both are now gated in `gate.py`:
 
-If this saved you time, a ⭐ on the repo helps other people find it.
+- **publish**: anything that changes what someone else relies on, like a shared doc or a setting. It looks reversible until someone has already acted on the old version.
+- **grant**: anything that changes who can do what: sharing a folder, adding a user, or editing the agent's own tool list. It undoes in one click, but nobody notices it happened, so it never gets undone.
+
+Found your industry's next verb? Open an issue.

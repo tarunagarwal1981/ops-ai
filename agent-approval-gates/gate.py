@@ -2,14 +2,16 @@
 
 Companion to "Your AI Agent Can Now Act Without Asking. Lock These Four Words First."
 
-Every tool declares a verb. Gated verbs (send, spend, sign, delete, submit) need a
+Every tool declares a verb. Gated verbs (send, spend, sign, delete, submit, publish, grant) need a
 person to approve the exact action before it runs. Blocked verbs never run, even
 with approval. Everything else (read, draft, sort) runs on its own.
 """
 from dataclasses import dataclass
 from typing import Any, Callable
 
-GATED = {"send", "spend", "sign", "delete", "submit"}
+GATED = {"send", "spend", "sign", "delete", "submit",
+         "publish",   # changes what others rely on: a doc, a shared setting
+         "grant"}     # changes who can do what: sharing, adding a user, editing the agent's own tools
 BLOCKED = {"trade", "transfer_between_accounts", "access_other_account"}
 
 

@@ -18,6 +18,13 @@ seen = []
 run_tool(TOOLS["send_email"], lambda p: seen.append(p) or False, to="a@b.example", body=body)
 assert "a@b.example" in seen[0] and body in seen[0]
 
+# Reader-suggested verbs are gated too: publish (others rely on it) and grant (changes who can do what).
+publish = Tool("publish_doc", "publish", lambda: "published", lambda: "PUBLISH doc")
+grant = Tool("add_tool", "grant", lambda: "added", lambda: "ADD a tool to the agent's own tool list")
+assert run_tool(publish, never)["status"] == "held"
+assert run_tool(grant, never)["status"] == "held"
+assert run_tool(grant, always)["status"] == "done"
+
 # Blocked verbs never run, even with approval.
 trade = Tool("buy_stock", "trade", lambda: "bought", lambda: "BUY")
 assert run_tool(trade, always)["status"] == "refused"
