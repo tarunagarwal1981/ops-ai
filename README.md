@@ -14,6 +14,8 @@ python demo.py   # a naive retry sends 2 emails; the wrapper sends 1
 - [`agent-idempotency/`](agent-idempotency/): a timed-out tool call can't turn into a duplicate email, refund or order
 - [`claude-code-hooks/`](claude-code-hooks/): six hooks that stop Claude Code from skipping tests or running `rm -rf`
 
+**Want the full library version?** [`safeact`](https://github.com/tarunagarwal1981/safeact) is the safety checkpoint every AI action passes through: checked, held when unsure, exactly-once, provable. The approval-gate and idempotency folders here are the small, readable versions of those ideas.
+
 | Folder | What it is | Write-up |
 |---|---|---|
 | [`mcp-sqlite-readonly/`](mcp-sqlite-readonly/) | A read-only MCP server (~70 lines) that lets Claude answer questions from a database without ever changing it, plus a test that tries to break it | [*I Tried to Trick My Own MCP Server Into Deleting a Database*](https://pub.towardsai.net/i-tried-to-trick-my-own-mcp-server-into-deleting-a-database-the-filter-failed-7197ca5550fa) |
