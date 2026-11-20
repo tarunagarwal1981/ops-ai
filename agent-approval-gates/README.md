@@ -28,6 +28,18 @@ Two habits that keep gates useful:
 - **Gate few things.** Forty approvals a day trains people to click "approve" without reading.
 - **Show the exact action.** "Send this email, to this person, with this text" gets a real decision. "Proceed?" gets a reflex. That's what `describe` is for.
 
+## When the yes comes back later
+
+If approval goes through Slack or a ticket, the details can change while it waits. Bind the approval to the exact action:
+
+```python
+ask = request_approval(send_email, to="a@b.example", body=text)   # shows the preview, returns a fingerprint
+# ...a person approves ask["preview"]...
+run_approved(send_email, ask["fingerprint"], to="a@b.example", body=text)   # runs only if nothing changed
+```
+
+Change one word of the body, or the recipient, and `run_approved` refuses: the old yes no longer counts. (Suggested by a reader on r/AI_Agents.)
+
 ## Your fifth verb (and sixth, and seventh)
 
 Regulated operations usually have one more: **submit**, as in a report, a filing or a declaration that someone else relies on.

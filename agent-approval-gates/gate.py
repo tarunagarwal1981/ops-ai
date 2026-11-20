@@ -6,6 +6,8 @@ Every tool declares a verb. Gated verbs (send, spend, sign, delete, submit, publ
 person to approve the exact action before it runs. Blocked verbs never run, even
 with approval. Everything else (read, draft, sort) runs on its own.
 """
+import hashlib
+import json
 from dataclasses import dataclass
 from typing import Any, Callable
 
@@ -31,6 +33,36 @@ def run_tool(tool: Tool, approve: Callable[[str], bool], **payload) -> dict:
         preview = tool.describe(**payload)
         if not approve(preview):
             return {"status": "held", "reason": "not approved", "preview": preview}
+    return {"status": "done", "result": tool.run(**payload)}
+
+
+# --- Approvals that survive a wait -------------------------------------------
+# When the yes comes back later (Slack, a ticket), the details could change in
+# between. Bind the approval to a fingerprint of the exact action: if anything
+# changes, the old yes no longer counts. (Idea from a reader on r/AI_Agents.)
+
+def fingerprint(tool: Tool, payload: dict) -> str:
+    canonical = json.dumps({"tool": tool.name, "verb": tool.verb, "payload": payload},
+                           sort_keys=True, default=str)
+    return hashlib.sha256(canonical.encode()).hexdigest()[:16]
+
+
+def request_approval(tool: Tool, **payload) -> dict:
+    """Step 1: show the exact action and hand back its fingerprint. Nothing runs yet."""
+    if tool.verb in BLOCKED:
+        return {"status": "refused", "reason": f"'{tool.verb}' is never allowed"}
+    if tool.verb not in GATED:
+        return {"status": "not_needed"}
+    return {"status": "pending", "fingerprint": fingerprint(tool, payload),
+            "preview": tool.describe(**payload)}
+
+
+def run_approved(tool: Tool, approved_fingerprint: str, **payload) -> dict:
+    """Step 2: run only if the action is exactly the one that was approved."""
+    if tool.verb in BLOCKED:
+        return {"status": "refused", "reason": f"'{tool.verb}' is never allowed"}
+    if fingerprint(tool, payload) != approved_fingerprint:
+        return {"status": "refused", "reason": "details changed after approval; ask again"}
     return {"status": "done", "result": tool.run(**payload)}
 
 
