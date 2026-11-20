@@ -17,7 +17,7 @@ python demo.py              # naive retry sends 2 emails, call_once sends 1
 2. **Write "started" before the call, "done" after.** The insert is atomic, so two workers can't both claim the same key.
 3. **"Started but never done" means in doubt.** It may have run. Don't re-run it blind. Ask the outside world first (`already_happened`: "is there an email with this key in the outbox?"). If yes, record it and move on. If no, run it.
 4. **No way to check? Stop.** An in-doubt call is reported, not re-run. A person decides.
-5. **Store the vendor's own id the moment it comes back.** If their reply arrived but your side timed out reading it, raise `AckedThenFailed(vendor_id)`. The id is saved, the call counts as done, and no lookup or re-send is needed. (Idea from a Reddit reply.)
+5. **Store the vendor's own id as soon as you have read it.** Some failures happen *after* the id is already in your hands: you read it from a response header or the first chunk, then the rest of the reply times out, or saving the result fails. In that case raise `AckedThenFailed(vendor_id)`. The id is saved, the call counts as done, and it is never re-sent. If the connection dies *before* any id comes through, you don't have it, and the call stays in doubt (steps 3 and 4). (Idea from a Reddit reply.)
 6. **A clean failure frees the key.** If nothing happened, retrying is safe.
 
 ## When the API has no lookup by key

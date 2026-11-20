@@ -15,8 +15,9 @@ from typing import Any, Callable, Optional
 
 
 class AckedThenFailed(TimeoutError):
-    """Raise this when the vendor's reply *arrived* (so you hold their id) but
-    your side then timed out or crashed while reading the rest of it."""
+    """Raise this when you have ALREADY READ the vendor's id (header, first chunk)
+    but your side then timed out or crashed on the rest. If the failure comes
+    before any id is read, raise TimeoutError instead: that stays in doubt."""
 
     def __init__(self, vendor_id: str):
         super().__init__(f"acknowledged as {vendor_id}, then failed reading reply")
