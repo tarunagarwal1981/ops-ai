@@ -28,6 +28,10 @@ Two habits that keep gates useful:
 - **Gate few things.** Forty approvals a day trains people to click "approve" without reading.
 - **Show the exact action.** "Send this email, to this person, with this text" gets a real decision. "Proceed?" gets a reflex. That's what `describe` is for.
 
+## A cap, like a capped card
+
+Some tools should have a hard limit that no approval can override. Give the tool an `allowed` check: here, `send_email` only accepts recipients on an allowlist. Anything else is refused before it ever reaches a person.
+
 ## When the yes comes back later
 
 If approval goes through Slack or a ticket, the details can change while it waits. Bind the approval to the exact action:

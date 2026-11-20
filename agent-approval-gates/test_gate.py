@@ -40,4 +40,9 @@ assert run_approved(send, fp, to="other@b.example", body=body)["status"] == "ref
 assert fingerprint(send, {"to": "a@b.example", "body": body}) == fingerprint(send, {"body": body, "to": "a@b.example"})
 assert run_approved(trade, fingerprint(trade, {}))["status"] == "refused"   # blocked even with a matching fingerprint
 
+# A hard limit comes before approval: mail to an address outside the allowlist is refused, even if approved.
+assert run_tool(send, always, to="a@stranger.example", body=body)["status"] == "refused"
+assert request_approval(send, to="a@stranger.example", body=body)["status"] == "refused"
+assert run_approved(send, fingerprint(send, {"to": "a@stranger.example", "body": body}), to="a@stranger.example", body=body)["status"] == "refused"
+
 print("ALL PASSED")

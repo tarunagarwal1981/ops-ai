@@ -9,7 +9,7 @@ with approval. Everything else (read, draft, sort) runs on its own.
 import hashlib
 import json
 from dataclasses import dataclass
-from typing import Any, Callable
+from typing import Any, Callable, Optional
 
 GATED = {"send", "spend", "sign", "delete", "submit",
          "publish",   # changes what others rely on: a doc, a shared setting
@@ -23,12 +23,15 @@ class Tool:
     verb: str
     run: Callable[..., Any]
     describe: Callable[..., str]   # plain-English preview of exactly what will happen
+    allowed: Optional[Callable[..., bool]] = None   # hard limit, e.g. recipient allowlist; checked before anything else
 
 
 def run_tool(tool: Tool, approve: Callable[[str], bool], **payload) -> dict:
     """The only path from the model to a side effect. The model never calls tool.run directly."""
     if tool.verb in BLOCKED:
         return {"status": "refused", "reason": f"'{tool.verb}' is never allowed"}
+    if tool.allowed is not None and not tool.allowed(**payload):
+        return {"status": "refused", "reason": "outside the allowed limits"}
     if tool.verb in GATED:
         preview = tool.describe(**payload)
         if not approve(preview):
@@ -51,6 +54,8 @@ def request_approval(tool: Tool, **payload) -> dict:
     """Step 1: show the exact action and hand back its fingerprint. Nothing runs yet."""
     if tool.verb in BLOCKED:
         return {"status": "refused", "reason": f"'{tool.verb}' is never allowed"}
+    if tool.allowed is not None and not tool.allowed(**payload):
+        return {"status": "refused", "reason": "outside the allowed limits"}
     if tool.verb not in GATED:
         return {"status": "not_needed"}
     return {"status": "pending", "fingerprint": fingerprint(tool, payload),
@@ -61,6 +66,8 @@ def run_approved(tool: Tool, approved_fingerprint: str, **payload) -> dict:
     """Step 2: run only if the action is exactly the one that was approved."""
     if tool.verb in BLOCKED:
         return {"status": "refused", "reason": f"'{tool.verb}' is never allowed"}
+    if tool.allowed is not None and not tool.allowed(**payload):
+        return {"status": "refused", "reason": "outside the allowed limits"}
     if fingerprint(tool, payload) != approved_fingerprint:
         return {"status": "refused", "reason": "details changed after approval; ask again"}
     return {"status": "done", "result": tool.run(**payload)}
@@ -78,11 +85,18 @@ def _pay_invoice(invoice_id: str, amount: float) -> str:
     return f"[paid {invoice_id}: {amount}]"
 
 
+ALLOWED_RECIPIENT_DOMAINS = {"vendor.example", "b.example"}
+
+def _recipient_allowed(to: str, body: str) -> bool:
+    return to.split("@")[-1] in ALLOWED_RECIPIENT_DOMAINS
+
+
 TOOLS = {
     "draft_email": Tool("draft_email", "draft", _draft_email,
                         lambda to, body: f"Draft an email to {to}"),
     "send_email":  Tool("send_email", "send", _send_email,
-                        lambda to, body: f"SEND email to {to}:\n---\n{body}\n---"),
+                        lambda to, body: f"SEND email to {to}:\n---\n{body}\n---",
+                        allowed=_recipient_allowed),
     "pay_invoice": Tool("pay_invoice", "spend", _pay_invoice,
                         lambda invoice_id, amount: f"PAY invoice {invoice_id} for {amount:,.2f}"),
 }
