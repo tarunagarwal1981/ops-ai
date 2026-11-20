@@ -35,3 +35,7 @@ Still nothing? Then an unknown outcome stays unknown and a person decides. Low-r
 - Your tool has to accept the key and the outside system has to be searchable by it (most payment and email APIs take an idempotency key or a reference). If it can't, step 4 is the best you can do.
 - One SQLite file is fine for one agent process. For many workers, put the same table in Postgres.
 - This guards against duplicates, not wrong calls. Pair it with an [approval gate](../agent-approval-gates/) for the verbs that matter.
+
+---
+
+If this saved you time, a ⭐ on the repo helps other people find it.

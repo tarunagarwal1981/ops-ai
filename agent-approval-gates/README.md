@@ -31,3 +31,7 @@ Two habits that keep gates useful:
 ## Your fifth verb
 
 Regulated operations usually have one more: **submit**, as in a report, a filing or a declaration that someone else relies on. Found your industry's fifth verb? Open an issue.
+
+---
+
+If this saved you time, a ⭐ on the repo helps other people find it.

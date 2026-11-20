@@ -30,3 +30,5 @@ Methods, patterns and runnable examples are public. Production models, data and 
 Found a way past one of the locks? A better pattern? An industry's "fifth verb"? Open an issue.
 
 MIT licensed.
+
+If something here saved you time, a ⭐ on the repo helps other people find it.
