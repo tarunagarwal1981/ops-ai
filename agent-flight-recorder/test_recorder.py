@@ -144,6 +144,34 @@ _, _, f = run([B("rm -rf /x <script>alert(1)</script>")])
 sm = r.summarize({}, [], f, [])
 check("html escaped", "<script>alert" not in r.render_html(sm, f, {}))
 
+# session name, first prompt, statement extraction, suggestions
+d = tempfile.mkdtemp(); (Path(d) / "p").mkdir()
+rows = [{"type": "user", "sessionId": "z", "slug": "calm-otter", "timestamp": "2026-11-02T10:00:00Z",
+         "message": {"content": "<system-reminder>x</system-reminder>"}},
+        {"type": "user", "sessionId": "z", "timestamp": "2026-11-02T10:00:01Z",
+         "message": {"content": [{"type": "text", "text": "Fix the login bug  in app.py"}]}}]
+rows += entry("z", "2026-11-02T10:01:00Z", "/w", "Bash", {"command": "cd x && git push -q --force origin HEAD:main; echo done"}, "q1")
+(Path(d) / "p" / "z.jsonl").write_text("\n".join(json.dumps(x) for x in rows))
+S, A = r.load_sessions(d)
+F = r.analyse(S, A, [])
+check("slug used as name", S["z"].name == "calm-otter")
+check("first prompt as title", S["z"].title == "Fix the login bug in app.py")
+check("fallback name is id prefix", r.Session("abcdef123456", "p").name == "abcdef12")
+check("statement isolates the command", F[0].snips[0] == "git push -q --force origin HEAD:main")
+check("flag count per session", S["z"].flagged == 1)
+check("session name on action", F[0].session_name == "calm-otter")
+add, notes = r.suggest(F, [])
+check("suggest adds force-push rule", "Bash(git push --force:*)" in add)
+add2, _ = r.suggest(F, ["Bash(git push --force:*)"])
+check("suggest skips rules you have", "Bash(git push --force:*)" not in add2)
+caught, missed = r.coverage(F, add)
+check("coverage is honest about misses", caught == 0 and len(missed) == 1)  # '-q --force' defeats the prefix rule
+check("compound command checked per part", r.rule_matches("Bash(git push --force:*)", "Bash", "cd x && git push --force origin a"))
+check("rule does not match substring", not r.rule_matches("Bash(rm -rf:*)", "Bash", "echo rm -rf"))
+out = r.render_text(r.summarize(S, A, F, []), F, S, [])
+check("text shows name + fixes", "calm-otter" in out and "What to do about it" in out and "Not covered" in out)
+check("html shows name", "calm-otter" in r.render_html(r.summarize(S, A, F, []), F, S, []))
+
 print(f"{PASS} passed, {FAIL} failed")
 print("ALL PASSED" if not FAIL else "SOME FAILED")
 sys.exit(1 if FAIL else 0)

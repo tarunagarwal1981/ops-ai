@@ -21,7 +21,9 @@ python recorder.py --since 14      # last two weeks only
 - **Who approved each call:** you clicked yes, or an allow rule did.
 - **Your deny rules, replayed:** how many of those past calls your current deny rules would have blocked, and how many would have gone straight through.
 - **Order of events:** if a session opened a secret file and later made a network call, it tells you. That is the order to check, not proof of a leak.
-- **Cost:** the most expensive sessions.
+- **Session names:** every finding shows the session it came from (Claude Code's own name, plus your first prompt), so you can find it again.
+- **What to do about it:** a copy-paste `deny` block for the findings you have, skipping rules you already have. It replays those rules on your own history and tells you how many past calls they would have stopped, and which spellings they miss. For things text rules can't stop (pipes, databases, branch pushes) it names the real lock instead.
+- **Cost:** per session.
 
 Likely secrets in commands (AWS keys, `sk-...`, `ghp_...`, `password=...`, passwords inside URLs) are masked in the output, so you can share a report without leaking them.
 
