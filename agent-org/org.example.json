@@ -1,0 +1,29 @@
+{
+  "name": "Acme Support",
+  "nodes": [
+    {"id": "acme", "type": "org",
+     "limits": {"spend": {"daily_usd": 500},
+                "send": {"deny_domains": ["competitor.com"]},
+                "access": {"deny": ["*:delete", "db:*"]}}},
+
+    {"id": "support", "type": "team", "parent": "acme",
+     "limits": {"spend": {"daily_usd": 300},
+                "send": {"allow_domains": ["acme.com", "*.acme.com", "gmail.com", "outlook.com"], "max_per_day": 200}}},
+
+    {"id": "refund-bot", "type": "agent", "parent": "support",
+     "limits": {"spend": {"per_action_usd": 50, "approval_over_usd": 20, "daily_usd": 100},
+                "send": {"max_per_day": 40},
+                "access": {"allow": ["crm:read", "payments:refund", "tickets:*"]}}},
+
+    {"id": "triage-bot", "type": "agent", "parent": "support",
+     "limits": {"send": {"allow_domains": ["acme.com"], "max_per_day": 500},
+                "access": {"allow": ["tickets:read", "tickets:label"]}}},
+
+    {"id": "finance", "type": "team", "parent": "acme",
+     "limits": {"spend": {"daily_usd": 200}}},
+
+    {"id": "invoice-bot", "type": "agent", "parent": "finance",
+     "limits": {"spend": {"per_action_usd": 150, "approval_over_usd": 100},
+                "access": {"allow": ["invoices:read", "invoices:create"]}}}
+  ]
+}

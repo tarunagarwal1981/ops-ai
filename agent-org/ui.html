@@ -1,0 +1,88 @@
+<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>agent-org</title>
+<style>
+:root{--bg:#fafaf8;--ink:#1c1c1a;--mute:#6b6b66;--line:#e4e4de;--ok:#1d7a46;--no:#b3261e;--wait:#9a6700;--card:#fff}
+@media(prefers-color-scheme:dark){:root{--bg:#161614;--ink:#ecece6;--mute:#9a9a92;--line:#34342f;--card:#1f1f1c;--ok:#4cc38a;--no:#ff7b72;--wait:#e3b341}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.5 system-ui,sans-serif}
+header{padding:14px 22px;border-bottom:1px solid var(--line);display:flex;gap:12px;align-items:baseline}
+header h1{font-size:16px;margin:0}header span{color:var(--mute);font-size:12px}
+main{display:grid;grid-template-columns:minmax(340px,1fr) minmax(340px,1fr);gap:18px;padding:18px 22px;max-width:1400px;margin:auto}
+@media(max-width:900px){main{grid-template-columns:1fr}}
+section{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px 16px}
+section h2{font-size:13px;margin:0 0 10px;text-transform:uppercase;letter-spacing:.05em;color:var(--mute)}
+.node{margin-left:18px;border-left:1px solid var(--line);padding-left:12px}.root{margin-left:0;border:0;padding:0}
+.nh{display:flex;gap:8px;align-items:baseline;margin:8px 0 2px}.nh b{font-size:14px}.tag{font-size:11px;color:var(--mute);border:1px solid var(--line);border-radius:4px;padding:0 5px}
+.meter{height:6px;background:var(--line);border-radius:3px;overflow:hidden;margin:2px 0 1px;max-width:280px}.meter i{display:block;height:100%;background:var(--ok)}
+.meter.hot i{background:var(--wait)}.meter.full i{background:var(--no)}
+.small{font-size:12px;color:var(--mute)}.lim{font-size:12px;color:var(--mute);margin:1px 0}
+table{width:100%;border-collapse:collapse;font-size:12.5px}td,th{padding:5px 6px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}th{color:var(--mute);font-weight:500}
+.allow{color:var(--ok)}.deny{color:var(--no)}.needs_approval{color:var(--wait)}
+button{font:inherit;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:6px;padding:3px 10px;cursor:pointer}
+button.go{background:var(--ok);color:#fff;border-color:var(--ok)}button.stop{color:var(--no)}
+.row{display:flex;gap:8px;flex-wrap:wrap;margin:6px 0}input,select{font:inherit;padding:4px 6px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--ink)}
+.full{grid-column:1/-1}.empty{color:var(--mute);font-style:italic}.err{color:var(--no)}
+</style>
+<header><h1>agent-org</h1><span id="meta">what each AI agent may spend, send and access</span></header>
+<main>
+ <section><h2>Org chart</h2><div id="tree" class="empty">loading…</div></section>
+ <div style="display:grid;gap:18px;align-content:start">
+  <section><h2>Waiting for a person <span id="npend"></span></h2><div id="approvals" class="empty">nothing waiting</div></section>
+  <section><h2>Try a request</h2>
+   <div class="row"><select id="t_agent"></select>
+    <select id="t_action"><option value="spend">spend</option><option value="send">send</option><option value="read">read</option><option value="write">write</option><option value="refund">refund</option><option value="delete">delete</option></select>
+    <input id="t_type" placeholder="resource type (crm)" size="14">
+    <input id="t_val" placeholder="amount in USD, or recipient email" size="26"></div>
+   <div class="row"><label class="small"><input type="checkbox" id="t_dry" checked> dry run (don't use budget)</label><button id="t_go">Ask</button></div>
+   <div id="t_out" class="small"></div></section>
+ </div>
+ <section class="full"><h2>Every decision</h2><div id="log" class="empty">no decisions yet</div></section>
+</main>
+<script>
+const token=(location.hash.match(/token=([^&]+)/)||[])[1]||"";
+const H={"X-Admin-Token":token,"Content-Type":"application/json"};
+const el=(t,c,x)=>{const e=document.createElement(t);if(c)e.className=c;if(x!==undefined)e.textContent=x;return e};
+async function api(p,opt){const r=await fetch(p,{headers:H,...opt});if(r.status===401)throw new Error("Open the URL printed by server.py (it carries the admin token).");return r.json()}
+function meter(used,max){const m=el("div","meter"),i=el("i");const p=max?Math.min(100,used/max*100):0;i.style.width=p+"%";if(p>=100)m.classList.add("full");else if(p>=75)m.classList.add("hot");m.append(i);return m}
+function lim(t){return el("div","lim",t)}
+function node(n,root){
+ const d=el("div","node"+(root?" root":""));const h=el("div","nh");h.append(el("b","",n.id),el("span","tag",n.type));d.append(h);
+ const L=n.limits||{},s=L.spend||{},se=L.send||{},ac=L.access||{};
+ if(s.daily_usd!==undefined){d.append(meter(n.spent_today,s.daily_usd),el("div","small",`spent today $${n.spent_today} of $${s.daily_usd}`))}
+ else if(n.spent_today){d.append(el("div","small",`spent today $${n.spent_today}`))}
+ if(s.monthly_usd!==undefined)d.append(el("div","small",`this month $${n.spent_month} of $${s.monthly_usd}`));
+ if(s.per_action_usd!==undefined)d.append(lim(`max $${s.per_action_usd} per action`));
+ if(s.approval_over_usd!==undefined)d.append(lim(`a person approves anything over $${s.approval_over_usd}`));
+ if(se.allow_domains)d.append(lim("may email: "+se.allow_domains.join(", ")));
+ if(se.deny_domains)d.append(lim("never email: "+se.deny_domains.join(", ")));
+ if(se.max_per_day!==undefined)d.append(lim(`sent today ${n.sent_today} of ${se.max_per_day}`));
+ if(ac.allow)d.append(lim("may: "+ac.allow.join(", ")));
+ if(ac.deny)d.append(lim("never: "+ac.deny.join(", ")));
+ (n.children||[]).forEach(c=>d.append(node(c,false)));return d}
+function agentsOf(n,o=[]){if(n.type==="agent")o.push(n.id);(n.children||[]).forEach(c=>agentsOf(c,o));return o}
+async function act(id,verb){await api(`/api/approvals/${id}/${verb}`,{method:"POST",body:"{}"});refresh()}
+function when(ts){return ts.slice(11,19)}
+async function refresh(){
+ try{
+  const [tree,apr,log]=await Promise.all([api("/api/tree"),api("/api/approvals"),api("/api/decisions")]);
+  document.getElementById("meta").textContent=`${tree.name} · policy ${tree.version}`;
+  const t=document.getElementById("tree");t.className="";t.replaceChildren(node(tree.root,true));
+  const sel=document.getElementById("t_agent");if(!sel.options.length)agentsOf(tree.root).forEach(a=>sel.add(new Option(a,a)));
+  const pend=apr.filter(a=>a.status==="pending");document.getElementById("npend").textContent=pend.length?`(${pend.length})`:"";
+  const A=document.getElementById("approvals");A.className=pend.length?"":"empty";A.replaceChildren();
+  if(!pend.length)A.textContent="nothing waiting";
+  pend.forEach(a=>{const r=el("div","row");r.append(el("span","",`${a.agent} wants to ${a.action} ${a.amount!==null?"$"+a.amount:a.recipient||""} on ${a.resource}`));
+   const y=el("button","go","Approve"),n=el("button","stop","Deny");y.onclick=()=>act(a.id,"approve");n.onclick=()=>act(a.id,"deny");r.append(y,n);A.append(r)});
+  const L=document.getElementById("log");L.className=log.length?"":"empty";L.replaceChildren();
+  if(!log.length)L.textContent="no decisions yet";else{
+   const tb=el("table"),hd=el("tr");["time","agent","asked to","result","why"].forEach(x=>hd.append(el("th","",x)));tb.append(hd);
+   log.slice(0,60).forEach(d=>{const r=el("tr");const what=d.action+(d.amount!==null?` $${d.amount}`:"")+(d.recipient?` ${d.recipient}`:"")+(d.resource&&d.resource!==":"?` ${d.resource}`:"");
+    r.append(el("td","",when(d.ts)),el("td","",d.agent),el("td","",what+(d.dry_run?" (dry run)":"")),el("td",d.status,d.status.replace("_"," ")),el("td","small",d.reason));tb.append(r)});L.append(tb)}
+ }catch(e){const t=document.getElementById("tree");t.className="err";t.textContent=e.message}}
+document.getElementById("t_go").onclick=async()=>{
+ const action=t_action.value,v=t_val.value.trim(),type=t_type.value.trim()||"demo";
+ const props=action==="spend"?{amount_usd:Number(v)}:action==="send"?{recipient:v}:{};
+ const body={subject:{type:"agent",id:t_agent.value},action:{name:action},resource:{type,id:"try-1",properties:props},context:{dry_run:t_dry.checked}};
+ const r=await (await fetch("/access/v1/evaluation",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)})).json();
+ const o=document.getElementById("t_out");o.replaceChildren(el("b",r.context.status,r.context.status.replace("_"," ")),el("span",""," — "+r.context.reason));refresh()};
+refresh();setInterval(refresh,4000);
+</script>
