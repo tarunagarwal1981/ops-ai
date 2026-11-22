@@ -5,11 +5,14 @@
 Try one in 30 seconds:
 
 ```bash
-git clone https://github.com/tarunagarwal1981/ops-ai && cd ops-ai/agent-idempotency
-python demo.py   # a naive retry sends 2 emails; the wrapper sends 1
+git clone https://github.com/tarunagarwal1981/ops-ai && cd ops-ai/agent-flight-recorder
+python recorder.py   # what has your Claude Code agent actually run on your machine?
 ```
 
+Or, no Claude Code needed: `cd ../agent-idempotency && python demo.py` (a naive retry sends 2 emails; the wrapper sends 1).
+
 **Start here:**
+- [`agent-flight-recorder/`](agent-flight-recorder/): reads your saved Claude Code sessions and shows the risky commands, secret-file reads and edits outside the project, and what your deny rules would have caught
 - [`agent-approval-gates/`](agent-approval-gates/): the agent can draft, but a person has to say yes before it sends, spends or deletes
 - [`agent-idempotency/`](agent-idempotency/): a timed-out tool call can't turn into a duplicate email, refund or order
 - [`claude-code-hooks/`](claude-code-hooks/): six hooks that stop Claude Code from skipping tests or running `rm -rf`
