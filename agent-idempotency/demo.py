@@ -34,3 +34,6 @@ for attempt in (1, 2, 3):
     r = call_once(ledger, "send_email", send_email, payload, already_happened=sent_with_key)
     print(f"  attempt {attempt}: {r['status']}")
 print(f"  vendor received {len(outbox)} email")
+
+print("\nMore like this: https://github.com/tarunagarwal1981/ops-ai")
+print("If this saved you a duplicate email, a star helps others find it.")
