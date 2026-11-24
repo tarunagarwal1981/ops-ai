@@ -193,6 +193,11 @@ check("corpus: heredoc fed to bash is a real command", (a := corpus("bash <<'EOF
 check("corpus: ordinary prompt text stays quoted", (a := corpus('timeout 60 claude -p "explain what git push --force does"')) and a.quoted)
 check("corpus: apostrophe inside a double-quoted string does not hide a later real command", (a := corpus('echo "it\'s done" && git push --force origin main')) and not a.quoted)
 check("corpus: git push --force inside that double-quoted string is still marked quoted", (a := corpus('echo "it\'s about git push --force"')) and a.quoted)
+check("corpus: apostrophe in a double-quoted commit message does not hide the next command",
+      (a := corpus("git commit -m \"don't touch\" && git push --force origin main && echo 'ok'")) and not a.quoted)
+# known limits (documented in the README): these pin today's behaviour so a future fix shows up as a changed test
+check("known limit: $(...) inside double quotes is still treated as quoted", (a := corpus('echo "$(git push --force origin main)"')) and a.quoted)
+
 # a hook/deny rule should block the real ones, and the replay should say so
 _, _, f = run([B("git push --force origin main"), B("cat > n.md <<'EOF'\ngit push --force\nEOF")], rules=["Bash(git push --force:*)"])
 check("corpus: deny replay blocks the real force push", sum(1 for a in f if a.would_block) == 1)
