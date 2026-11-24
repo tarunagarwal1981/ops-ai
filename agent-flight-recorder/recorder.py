@@ -88,9 +88,20 @@ def mask(s):
     return s
 
 
+SHELL_BEFORE = re.compile(r"(?:^|[\s;&|(])(?:ba|z|da|k)?sh\s+(?:-\w+\s+)*$")
+
+
+def _heredoc_repl(raw):
+    def repl(m):
+        # a heredoc fed to a shell (bash <<EOF ... EOF) is executed, so keep it; one written to a file is only text
+        return m.group(0) if SHELL_BEFORE.search(raw[:m.start()]) else " "
+    return repl
+
+
 def command_text(raw):
-    """The command with heredoc bodies removed, so text *written into a file* is not mistaken for a command."""
-    return HEREDOC.sub(" ", raw)
+    """The command with heredoc bodies removed, so text *written into a file* is not mistaken for a command.
+    A heredoc handed to a shell (bash <<EOF) is kept: that text runs."""
+    return HEREDOC.sub(_heredoc_repl(raw), raw)
 
 
 def rm_only_benign(cmd):
@@ -113,9 +124,22 @@ def statement(cmd, start, end, cap=150):
     return out if len(out) <= cap else out[:cap] + "..."
 
 
+# a quoted string handed to another shell is a command, not just text: bash -c "...", sh -c '...', eval "...", ssh host "..."
+WRAPPER_BEFORE = re.compile(r"(?:\b(?:ba|z|da|k)?sh\s+(?:-\w+\s+)*-\w*c\w*\s+|\beval\s+|\bssh\s+(?:-\w\s+\S+\s+|-\S+\s+)*\S+\s+)$")
+
+
 def in_quotes(text, pos):
-    before = text[:pos]
-    return before.count("'") % 2 == 1 or before.count('"') % 2 == 1
+    """True when `pos` sits inside quoted text that is only text (an echo, a prompt, a test string).
+    The payload of bash -c / sh -c / eval / ssh is quoted but runs, so it counts as a real command."""
+    quote, start = None, -1
+    for i, ch in enumerate(text[:pos]):
+        if quote is None and ch in "'\"":
+            quote, start = ch, i
+        elif ch == quote:
+            quote = None
+    if quote is None:
+        return False
+    return not WRAPPER_BEFORE.search(text[:start])
 
 
 # ------------------------------------------------------------------ data

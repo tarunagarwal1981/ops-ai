@@ -52,6 +52,8 @@ Early versions flagged far too much, so it now:
 
 - The log records what the agent was **asked to run**. A script it wrote and then ran can do more than its command line shows. Read this as "what to look at", not a full audit.
 - Detection is pattern matching. It will miss unusual spellings and will sometimes flag something harmless.
+- It matches on the logged command *string*, not on parsed arguments. It separates four contexts: a command that runs, text written to a file by a heredoc (ignored), text inside quotes that is only text (flagged and marked "quoted", listed last), and the payload of `bash -c`, `sh -c`, `eval`, `ssh host "..."` or a heredoc fed to a shell (these run, so they count as real). The tests in `test_recorder.py` ("synthetic corpus") pin each case. What it still cannot see: a command built from variables or a script file the agent wrote and then ran.
+- The "approved by rule / you / hook" label is read from the approval field Claude Code writes in the log. It is not replayed. Only the deny-rule check is a replay.
 - The deny-rule replay is an approximation of Claude Code's matching, not the real engine. It checks your rules against the logged command text.
 - Transcript format can change between Claude Code versions. If a field is missing, that part shows as unknown instead of failing.
 - Cost comes from the totals Claude Code records. Treat it as approximate.

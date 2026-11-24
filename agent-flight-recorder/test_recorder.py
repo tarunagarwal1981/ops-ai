@@ -172,6 +172,34 @@ out = r.render_text(r.summarize(S, A, F, []), F, S, [])
 check("text shows name + fixes", "calm-otter" in out and "What to do about it" in out and "Not covered" in out)
 check("html shows name", "calm-otter" in r.render_html(r.summarize(S, A, F, []), F, S, []))
 
+# --- synthetic corpus: the same dangerous text in different contexts -------------
+# Replay reads the logged command string, so what matters is whether the *context* of the text
+# is read correctly: executed, written into a file, shown in a quote, or handed to another shell.
+def corpus(cmd):
+    _, _, f = run([B(cmd)])
+    return f[0] if f else None
+
+check("corpus: real push is flagged, not quoted", (a := corpus("git push origin main")) and not a.quoted)
+check("corpus: push text in a file heredoc is ignored", corpus("cat > n.md <<'EOF'\ngit push origin main\nEOF") is None)
+check("corpus: push text in an echo is flagged but marked quoted", (a := corpus('echo "git push origin main"')) and a.quoted)
+check("corpus: real force push is flagged", (a := corpus("git push --force origin main")) and not a.quoted)
+check("corpus: bash -c payload counts as a real command", (a := corpus('bash -c "git push --force origin main"')) and not a.quoted)
+check("corpus: sh -c payload counts as a real command", (a := corpus("sh -c 'rm -rf /var/data'")) and not a.quoted)
+check("corpus: bash -lc payload counts as a real command", (a := corpus('bash -lc "git push -f origin main"')) and not a.quoted)
+check("corpus: eval payload counts as a real command", (a := corpus('eval "git push --force origin main"')) and not a.quoted)
+check("corpus: ssh payload counts as a real command", (a := corpus('ssh prod "rm -rf /srv/app"')) and not a.quoted)
+check("corpus: ssh with options still counts", (a := corpus('ssh -p 2222 prod "rm -rf /srv/app"')) and not a.quoted)
+check("corpus: heredoc fed to bash is a real command", (a := corpus("bash <<'EOF'\ngit push --force origin main\nEOF")) and not a.quoted)
+check("corpus: ordinary prompt text stays quoted", (a := corpus('timeout 60 claude -p "explain what git push --force does"')) and a.quoted)
+check("corpus: apostrophe inside a double-quoted string does not hide a later real command", (a := corpus('echo "it\'s done" && git push --force origin main')) and not a.quoted)
+check("corpus: git push --force inside that double-quoted string is still marked quoted", (a := corpus('echo "it\'s about git push --force"')) and a.quoted)
+# a hook/deny rule should block the real ones, and the replay should say so
+_, _, f = run([B("git push --force origin main"), B("cat > n.md <<'EOF'\ngit push --force\nEOF")], rules=["Bash(git push --force:*)"])
+check("corpus: deny replay blocks the real force push", sum(1 for a in f if a.would_block) == 1)
+# approval field is read from the log, not replayed
+_, a, _ = run([B("git push origin main", {"decision": "accept", "source": "config", "reasonType": "rule"})])
+check("corpus: approval comes from the log field", a[0].approved_by == "rule")
+
 print(f"{PASS} passed, {FAIL} failed")
 print("ALL PASSED" if not FAIL else "SOME FAILED")
 sys.exit(1 if FAIL else 0)
