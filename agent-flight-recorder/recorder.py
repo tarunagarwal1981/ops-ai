@@ -136,12 +136,13 @@ def in_quotes(text, pos):
       command context (top level, $(...), backticks): ' opens single, " opens double, $( and ` open a substitution
       double quotes: " closes; $( and ` open a substitution; a backslash escapes the next character
       single quotes: only ' closes
-      a # at the start of a word in a command context starts a comment that runs to the end of the line
+      a # at the start of a word in a command context starts a comment that runs to the end of the line (inside backticks, to the closing backtick)
+      inside $(...), `case ... esac` is tracked so the ) after a pattern does not close the substitution
     The payload of bash -c / sh -c / eval / ssh is quoted but runs, so it counts as a real command."""
-    stack = [("top", -1)]
+    stack = [["top", -1, 0]]  # [context, start, open `case` count]
     i, n = 0, min(pos, len(text))
     while i < n:
-        ctx, _ = stack[-1]
+        ctx = stack[-1][0]
         ch = text[i]
         if ctx == "sq":
             if ch == "'":
@@ -151,24 +152,31 @@ def in_quotes(text, pos):
         elif ctx == "dq" and ch == '"':
             stack.pop()
         elif ch == "#" and ctx in ("top", "sub", "tick") and (i == 0 or text[i - 1] in " \t\n;|&("):
-            nl = text.find("\n", i)  # a comment runs to the end of the line; quotes inside it mean nothing
-            if nl < 0 or nl >= n:
+            # a comment runs to the end of the line, or inside backticks to the closing backtick
+            ends = [e for e in (text.find("\n", i), text.find("`", i) if ctx == "tick" else -1) if e >= 0]
+            end = min(ends) if ends else -1
+            if end < 0 or end >= n:
                 return False
-            i = nl
+            i = end if text[end] == "\n" else end - 1
         elif ctx in ("top", "sub", "tick") and ch in "'\"":
-            stack.append(("sq" if ch == "'" else "dq", i))
+            stack.append(["sq" if ch == "'" else "dq", i, 0])
         elif text.startswith("$(", i):
-            stack.append(("sub", i))
+            stack.append(["sub", i, 0])
             i += 1
         elif ch == "`":
             if ctx == "tick":
                 stack.pop()
             else:
-                stack.append(("tick", i))
-        elif ctx == "sub" and ch == ")":
+                stack.append(["tick", i, 0])
+        elif ctx in ("top", "sub", "tick") and ch in "ce" and (i == 0 or text[i - 1] in " \t\n;|&(") and (
+                re.match(r"case\s", text[i:i + 5]) or re.match(r"esac(?![\w])", text[i:i + 5])):
+            # `case x in a) ... esac`: the ) after a pattern is not the end of the substitution
+            stack[-1][2] = stack[-1][2] + 1 if ch == "c" else max(0, stack[-1][2] - 1)
+            i += 3
+        elif ctx == "sub" and ch == ")" and stack[-1][2] == 0:
             stack.pop()
         i += 1
-    ctx, start = stack[-1]
+    ctx, start, _ = stack[-1]
     if ctx not in ("sq", "dq"):
         return False
     return not WRAPPER_BEFORE.search(text[:start])

@@ -217,6 +217,15 @@ check("corpus: an apostrophe in a comment does not hide the command on the next 
 check("corpus: in_quotes sees the rm -rf on the line after a comment with an apostrophe as real", (lambda t: not r.in_quotes(t, t.index("rm")))("ls # don't need this\nrm -rf build"))
 check("corpus: a # inside a word is not a comment", (a := corpus("echo a#b 'x'; git push --force origin main")) and not a.quoted)
 check("corpus: a # inside quotes is only text", (a := corpus('echo "# git push --force origin main"')) and a.quoted)
+# a comment inside backticks ends at the closing backtick, not the newline
+check("corpus: a comment inside backticks ends at the closing backtick, so the next line is real", (lambda t: not r.in_quotes(t, t.index("rm")))('echo "`date # now`"\necho `rm -rf build`'))
+check("corpus: a comment inside backticks does not hide the command after the closing backtick", (a := corpus('echo "`date # now`" && git push --force origin main')) and not a.quoted)
+check("corpus: a comment inside $(...) still runs to the newline", (a := corpus('echo "$(date # it\'s now\n)" && git push --force origin main')) and not a.quoted)
+# case ... esac inside $(...): the ) after a pattern does not end the substitution
+check("corpus: a case pattern ) inside $(...) does not end the substitution early", (lambda t: not r.in_quotes(t, t.index("rm")))('echo "$(case $x in a) rm -rf build;; esac)"'))
+check("corpus: real push after a case inside $(...) closes is real", (a := corpus('echo "$(case $x in a) echo hi;; esac)" && git push --force origin main')) and not a.quoted)
+check("corpus: text after the case substitution has closed is quoted again", (a := corpus('echo "$(case $x in a) echo hi;; esac) git push --force"')) and a.quoted)
+check("corpus: the word case inside a word is not a case statement", (a := corpus('echo "$(echo showcase a) git push --force"')) and a.quoted)
 # known limit (documented in the README): $'...' strings and ${...} expansions are not understood
 check("known limit: in $'...' strings a backslash-quote is not understood, so this real push is still marked quoted", (a := corpus("echo $'it\\'s'; git push --force origin main")) and a.quoted)
 
