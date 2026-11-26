@@ -195,8 +195,16 @@ check("corpus: apostrophe inside a double-quoted string does not hide a later re
 check("corpus: git push --force inside that double-quoted string is still marked quoted", (a := corpus('echo "it\'s about git push --force"')) and a.quoted)
 check("corpus: apostrophe in a double-quoted commit message does not hide the next command",
       (a := corpus("git commit -m \"don't touch\" && git push --force origin main && echo 'ok'")) and not a.quoted)
-# known limits (documented in the README): these pin today's behaviour so a future fix shows up as a changed test
-check("known limit: $(...) inside double quotes is still treated as quoted", (a := corpus('echo "$(git push --force origin main)"')) and a.quoted)
+# $(...) and backticks inside double quotes run in a real shell, so they count as real commands
+check("corpus: $(...) inside double quotes runs, so it is real", (a := corpus('echo "$(git push --force origin main)"')) and not a.quoted)
+check("corpus: $(...) in the middle of a double-quoted string is real", (a := corpus('echo "done: $(git push --force origin main) ok"')) and not a.quoted)
+check("corpus: backticks inside double quotes run, so they are real", (a := corpus('echo "`git push --force origin main`"')) and not a.quoted)
+check("corpus: the same text after the $(...) has closed is quoted again", (a := corpus('echo "$(date) then git push --force"')) and a.quoted)
+check("corpus: $(...) inside single quotes is only text, so it stays quoted", (a := corpus("echo '$(git push --force origin main)'")) and a.quoted)
+check("corpus: parentheses without a dollar sign are only text", (a := corpus('echo "(git push --force origin main)"')) and a.quoted)
+check("corpus: an escaped \\$( inside double quotes is only text", (a := corpus('echo "\\$(git push --force origin main)"')) and a.quoted)
+# known limit (documented in the README): a quote nested inside $(...) is not tracked
+check("known limit: a quote nested inside $(...) confuses the scanner, so this real push is still marked quoted", (a := corpus('echo "$(echo "x"; git push --force origin main)"')) and a.quoted)
 
 # a hook/deny rule should block the real ones, and the replay should say so
 _, _, f = run([B("git push --force origin main"), B("cat > n.md <<'EOF'\ngit push --force\nEOF")], rules=["Bash(git push --force:*)"])

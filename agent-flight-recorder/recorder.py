@@ -139,7 +139,29 @@ def in_quotes(text, pos):
             quote = None
     if quote is None:
         return False
+    if quote == '"' and _runs_inside_double_quotes(text[start + 1:pos]):
+        return False
     return not WRAPPER_BEFORE.search(text[:start])
+
+
+def _runs_inside_double_quotes(seg):
+    """Inside "...", the shell still runs $(...) and `...`. True when the end of `seg` sits inside one.
+    One level only: a quote nested inside $(...) is not tracked (documented limit)."""
+    depth, tick, i = 0, False, 0
+    while i < len(seg):
+        if seg[i] == "\\":
+            i += 2
+            continue
+        if seg.startswith("$(", i):
+            depth += 1
+            i += 2
+            continue
+        if seg[i] == ")" and depth:
+            depth -= 1
+        elif seg[i] == "`":
+            tick = not tick
+        i += 1
+    return depth > 0 or tick
 
 
 # ------------------------------------------------------------------ data
