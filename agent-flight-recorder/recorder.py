@@ -130,38 +130,42 @@ WRAPPER_BEFORE = re.compile(r"(?:\b(?:ba|z|da|k)?sh\s+(?:-\w+\s+)*-\w*c\w*\s+|\b
 
 def in_quotes(text, pos):
     """True when `pos` sits inside quoted text that is only text (an echo, a prompt, a test string).
+
+    A small state machine, not a full shell parser. It keeps a stack of contexts, so quoting starts over
+    inside $(...) and backticks: "$(echo "x"; rm -rf build)" has a real command after the inner string.
+      command context (top level, $(...), backticks): ' opens single, " opens double, $( and ` open a substitution
+      double quotes: " closes; $( and ` open a substitution; a backslash escapes the next character
+      single quotes: only ' closes
     The payload of bash -c / sh -c / eval / ssh is quoted but runs, so it counts as a real command."""
-    quote, start = None, -1
-    for i, ch in enumerate(text[:pos]):
-        if quote is None and ch in "'\"":
-            quote, start = ch, i
-        elif ch == quote:
-            quote = None
-    if quote is None:
-        return False
-    if quote == '"' and _runs_inside_double_quotes(text[start + 1:pos]):
+    stack = [("top", -1)]
+    i, n = 0, min(pos, len(text))
+    while i < n:
+        ctx, _ = stack[-1]
+        ch = text[i]
+        if ctx == "sq":
+            if ch == "'":
+                stack.pop()
+        elif ch == "\\":
+            i += 1  # an escaped character never opens or closes anything
+        elif ctx == "dq" and ch == '"':
+            stack.pop()
+        elif ctx in ("top", "sub", "tick") and ch in "'\"":
+            stack.append(("sq" if ch == "'" else "dq", i))
+        elif text.startswith("$(", i):
+            stack.append(("sub", i))
+            i += 1
+        elif ch == "`":
+            if ctx == "tick":
+                stack.pop()
+            else:
+                stack.append(("tick", i))
+        elif ctx == "sub" and ch == ")":
+            stack.pop()
+        i += 1
+    ctx, start = stack[-1]
+    if ctx not in ("sq", "dq"):
         return False
     return not WRAPPER_BEFORE.search(text[:start])
-
-
-def _runs_inside_double_quotes(seg):
-    """Inside "...", the shell still runs $(...) and `...`. True when the end of `seg` sits inside one.
-    One level only: a quote nested inside $(...) is not tracked (documented limit)."""
-    depth, tick, i = 0, False, 0
-    while i < len(seg):
-        if seg[i] == "\\":
-            i += 2
-            continue
-        if seg.startswith("$(", i):
-            depth += 1
-            i += 2
-            continue
-        if seg[i] == ")" and depth:
-            depth -= 1
-        elif seg[i] == "`":
-            tick = not tick
-        i += 1
-    return depth > 0 or tick
 
 
 # ------------------------------------------------------------------ data

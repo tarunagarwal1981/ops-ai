@@ -203,8 +203,17 @@ check("corpus: the same text after the $(...) has closed is quoted again", (a :=
 check("corpus: $(...) inside single quotes is only text, so it stays quoted", (a := corpus("echo '$(git push --force origin main)'")) and a.quoted)
 check("corpus: parentheses without a dollar sign are only text", (a := corpus('echo "(git push --force origin main)"')) and a.quoted)
 check("corpus: an escaped \\$( inside double quotes is only text", (a := corpus('echo "\\$(git push --force origin main)"')) and a.quoted)
-# known limit (documented in the README): a quote nested inside $(...) is not tracked
-check("known limit: a quote nested inside $(...) confuses the scanner, so this real push is still marked quoted", (a := corpus('echo "$(echo "x"; git push --force origin main)"')) and a.quoted)
+# quoting starts over inside $(...) and backticks
+check("corpus: a quote nested inside $(...) does not hide the real command after it", (a := corpus('echo "$(echo "x"; git push --force origin main)"')) and not a.quoted)
+check("corpus: reviewer's example, rm -rf after a nested string inside $(...) is real", (a := corpus('echo "$(echo "x"; rm -rf build)"')) and not a.quoted)
+check("corpus: a ) inside a nested string does not end the substitution", (a := corpus('echo "$(echo ")"; git push --force origin main)"')) and not a.quoted)
+check("corpus: text inside the nested string is still only text", (a := corpus('echo "$(echo "git push --force origin main")"')) and a.quoted)
+check("corpus: after the substitution closes, the outer string is quoted again", (a := corpus('echo "$(date)" "and git push --force"')) and a.quoted)
+check("corpus: nested quotes inside backticks do not hide the real command", (a := corpus('echo "`echo "x"; git push --force origin main`"')) and not a.quoted)
+check("corpus: an escaped quote at top level does not open a string", (a := corpus('echo \\"; git push --force origin main')) and not a.quoted)
+check("corpus: an escaped quote inside a double-quoted string does not close it", (a := corpus('echo "a \\" git push --force"')) and a.quoted)
+# known limit (documented in the README): $'...' strings, ${...} expansions and comments are not understood
+check("known limit: in $'...' strings a backslash-quote is not understood, so this real push is still marked quoted", (a := corpus("echo $'it\\'s'; git push --force origin main")) and a.quoted)
 
 # a hook/deny rule should block the real ones, and the replay should say so
 _, _, f = run([B("git push --force origin main"), B("cat > n.md <<'EOF'\ngit push --force\nEOF")], rules=["Bash(git push --force:*)"])
