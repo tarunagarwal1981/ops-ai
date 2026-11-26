@@ -136,6 +136,7 @@ def in_quotes(text, pos):
       command context (top level, $(...), backticks): ' opens single, " opens double, $( and ` open a substitution
       double quotes: " closes; $( and ` open a substitution; a backslash escapes the next character
       single quotes: only ' closes
+      a # at the start of a word in a command context starts a comment that runs to the end of the line
     The payload of bash -c / sh -c / eval / ssh is quoted but runs, so it counts as a real command."""
     stack = [("top", -1)]
     i, n = 0, min(pos, len(text))
@@ -149,6 +150,11 @@ def in_quotes(text, pos):
             i += 1  # an escaped character never opens or closes anything
         elif ctx == "dq" and ch == '"':
             stack.pop()
+        elif ch == "#" and ctx in ("top", "sub", "tick") and (i == 0 or text[i - 1] in " \t\n;|&("):
+            nl = text.find("\n", i)  # a comment runs to the end of the line; quotes inside it mean nothing
+            if nl < 0 or nl >= n:
+                return False
+            i = nl
         elif ctx in ("top", "sub", "tick") and ch in "'\"":
             stack.append(("sq" if ch == "'" else "dq", i))
         elif text.startswith("$(", i):

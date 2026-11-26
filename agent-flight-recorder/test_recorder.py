@@ -212,7 +212,12 @@ check("corpus: after the substitution closes, the outer string is quoted again",
 check("corpus: nested quotes inside backticks do not hide the real command", (a := corpus('echo "`echo "x"; git push --force origin main`"')) and not a.quoted)
 check("corpus: an escaped quote at top level does not open a string", (a := corpus('echo \\"; git push --force origin main')) and not a.quoted)
 check("corpus: an escaped quote inside a double-quoted string does not close it", (a := corpus('echo "a \\" git push --force"')) and a.quoted)
-# known limit (documented in the README): $'...' strings, ${...} expansions and comments are not understood
+# comments: a # at the start of a word runs to the end of the line, so an apostrophe in it opens nothing
+check("corpus: an apostrophe in a comment does not hide the command on the next line", (a := corpus("ls # don't need this\ngit push --force origin main")) and not a.quoted)
+check("corpus: in_quotes sees the rm -rf on the line after a comment with an apostrophe as real", (lambda t: not r.in_quotes(t, t.index("rm")))("ls # don't need this\nrm -rf build"))
+check("corpus: a # inside a word is not a comment", (a := corpus("echo a#b 'x'; git push --force origin main")) and not a.quoted)
+check("corpus: a # inside quotes is only text", (a := corpus('echo "# git push --force origin main"')) and a.quoted)
+# known limit (documented in the README): $'...' strings and ${...} expansions are not understood
 check("known limit: in $'...' strings a backslash-quote is not understood, so this real push is still marked quoted", (a := corpus("echo $'it\\'s'; git push --force origin main")) and a.quoted)
 
 # a hook/deny rule should block the real ones, and the replay should say so
